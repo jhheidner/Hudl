@@ -1,0 +1,11 @@
+.pytest_cache/
+__pycache__/
+*.pyc
+.venv/
+.env
+logs/*.log
+artifacts/screenshots/*
+artifacts/reports/*
+allure-results/
+allure-report/
+docs/TEST_PLAN.md
