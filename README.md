@@ -14,6 +14,7 @@ The suite focuses on practical test design: session validation, resilience check
 - WebDriver Manager
 - pytest HTML reports
 - Allure reporting (optional)
+- `requests` — lightweight public HTTP checks (`tests/api/`)
 
 ---
 
@@ -27,6 +28,7 @@ The suite focuses on practical test design: session validation, resilience check
 - **Responsive** — mobile viewport sizing  
 - **Accessibility** — keyboard navigation, basic focus order  
 - **Framework** — URL redaction, explicit-wait contracts  
+- **Public HTTP (non-browser)** — status codes and redirect landing hosts for `/` and `/login` (`@pytest.mark.api`)
 
 Canonical case IDs and notes live in `docs/TEST_PLAN.docx` (not all details are duplicated here).
 
@@ -52,6 +54,7 @@ Canonical case IDs and notes live in `docs/TEST_PLAN.docx` (not all details are 
 │       ├── home_page.py
 │       └── login_page.py
 ├── tests/
+│   ├── api/               # lightweight HTTP (requests; no private APIs)
 │   ├── a11y/
 │   ├── conftest.py
 │   ├── cross_browser/
@@ -129,6 +132,18 @@ Never commit `.env` or real credentials.
 python -m pytest tests/smoke -m smoke
 ```
 
+**Smoke + public HTTP checks** (same as CI):
+
+```powershell
+python -m pytest tests/smoke -m smoke tests/api -q
+```
+
+**API / HTTP only** (no browser):
+
+```powershell
+python -m pytest tests/api -m api -q
+```
+
 **Full suite** (longer; needs credentials for session/login tests):
 
 ```powershell
@@ -184,9 +199,37 @@ When Allure is enabled, failed UI tests can attach screenshots and truncated pag
 
 ## 🔄 CI/CD
 
-- **GitHub Actions** (`.github/workflows/ci.yml`) runs the **smoke** suite on **push** and **pull_request** to `main` / `master`, with **HEADLESS=true**.
+- **GitHub Actions** (`.github/workflows/ci.yml`) runs **`tests/smoke` (marked smoke)** plus **`tests/api`** on **push** and **pull_request** to `main` / `master`, with **HEADLESS=true** (HTTP tests ignore headless; they use `requests` only).
 - Workflow **artifacts**: pytest HTML report and `allure-results` folder for local `allure serve`.
 - **Full regression** is intended for **local** or **scheduled** runs (not wired as a nightly job in this repo by default).
+
+---
+
+## Lightweight HTTP checks (`tests/api`)
+
+These tests **support** UI coverage; they do **not** replace Selenium. They use **`BASE_URL`** and plain **`requests`** to:
+
+- Assert **`GET /`** returns **200**
+- Assert **`GET /login`** returns a servable response or an HTTP redirect (first hop)
+- Follow redirects and assert the final URL is on a **`*.hudl.com`** host (marketing site or `identity.hudl.com`)
+
+They deliberately avoid private JSON APIs, tokens, or undocumented routes. If Hudl changes CDN or routing, tune assertions here before debugging long UI runs.
+
+---
+
+## API testing strategy (future scope)
+
+This repo does **not** call undocumented Hudl backend APIs. A future, access-controlled layer could add:
+
+| Direction | Examples |
+|-----------|----------|
+| **Auth contracts** | Validating token shape or expiry behavior **only** with official test tenants and credentials supplied by Hudl |
+| **Contract tests** | JSON schema + status codes for **documented** public or partner APIs |
+| **Negative paths** | Invalid or expired tokens, 401/403 expectations |
+| **Correlation with UI** | Same `BASE_URL` / env matrix so HTTP and browser tests share configuration |
+| **Isolation** | `responses` / `requests-mock` for stable unit tests of client code **without** hitting production |
+
+Until then, **`tests/api`** stays limited to **public GET** behavior you can reason about without insider knowledge.
 
 ---
 

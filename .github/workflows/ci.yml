@@ -32,7 +32,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run tests
-        run: pytest tests/smoke -m smoke -q --alluredir=allure-results --clean-alluredir
+        run: pytest tests/smoke -m smoke tests/api -q --alluredir=allure-results --clean-alluredir
 
       - name: Upload Allure results
         if: always()
